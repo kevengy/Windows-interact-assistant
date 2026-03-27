@@ -36,8 +36,9 @@ DEFAULT_APP_MAP = {
     'code': 'code',
 
     # 通讯工具
-    '微信': 'C:\\Program Files (x86)\\Tencent\\WeChat\\WeChat.exe',
-    'wechat': 'C:\\Program Files (x86)\\Tencent\\WeChat\\WeChat.exe',
+    '微信': 'C:\\Program Files\\Tencent\\Weixin\\Weixin.exe',
+    'wechat': 'C:\\Program Files\\Tencent\\Weixin\\Weixin.exe',
+    'weixin': 'C:\\Program Files\\Tencent\\Weixin\\Weixin.exe',
     'qq': 'C:\\Program Files (x86)\\Tencent\\QQ\\Bin\\QQ.exe',
     '企业微信': 'C:\\Program Files (x86)\\Tencent\\WeChatWork\\wxwork.exe',
     '钉钉': 'C:\\Program Files (x86)\\DingTalk\\DingTalk.exe',
