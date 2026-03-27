@@ -57,6 +57,8 @@ DEFAULT_APP_MAP = {
     'windows media player': 'C:\\Program Files\\Windows Media Player\\wmplayer.exe',
     'vlc': 'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
     '爱奇艺': 'C:\\Program Files\\iQIYI\\iQIYI.exe',
+    '抖音': 'C:\\Program Files (x86)\\ByteDance\\douyin\\douyin.exe',
+    'douyin': 'C:\\Program Files (x86)\\ByteDance\\douyin\\douyin.exe',
 
     # 其他
     '画图': 'mspaint.exe',
