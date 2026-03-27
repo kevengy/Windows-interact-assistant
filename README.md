@@ -1,6 +1,6 @@
 # Windows 交互语音助手
 
-通过语音或文本指令控制 Windows 系统的智能助手，支持应用管理、系统控制、文件操作、定时提醒等功能。
+通过语音或文本指令控制 Windows 系统的智能助手，支持应用管理、系统控制、文件操作、定时提醒、跨应用键盘自动化等功能。
 
 ## 功能特性
 
@@ -8,6 +8,7 @@
 - **唤醒词检测** — 支持配置唤醒词，唤醒后说出指令
 - **语音识别** — 使用 Google 语音识别引擎，支持中文
 - **双模式输入** — 语音模式和文本模式可随时切换
+- **ASR 纠错** — 自动修正语音识别错误（如"打一微信"→"打开微信"）
 
 ### 应用管理
 - **打开/关闭应用** — 语音或文本指令打开/关闭任意应用
@@ -18,6 +19,11 @@
 - 音量调节
 - 记事本、计算器、文件管理器等系统工具快速打开
 - 支持扩展插件自定义指令
+
+### 跨应用键盘自动化（V2 新增）
+- **抖音控制** — 通过 pyautogui 模拟键盘快捷键
+  - 播放/暂停（Space）、点赞（L）、评论（I）、关注（F）
+  - 滚动（上滑/下滑）、全屏、静音、刷新等
 
 ### 反馈机制
 - TTS 语音播报执行结果
@@ -34,6 +40,26 @@
 | 存入文件夹 C:\test 内容 测试文本 | 保存文本到文件夹 |
 | 列出应用 | 显示已注册应用列表 |
 | 检查应用 VSCode | 查询应用是否已安装 |
+| 抖音点赞 | 点赞/取消点赞 |
+| 抖音收藏 | 收藏/取消收藏 |
+| 抖音关注 | 关注/取消关注 |
+| 抖音评论 | 评论 |
+| 抖音全屏 | 全屏 |
+| 抖音小窗 | 小窗模式 |
+| 抖音暂停 | 暂停/播放 |
+| 抖音快进 | 快进 |
+| 抖音快退 | 快退 |
+| 抖音上下滑 | 上下翻页 |
+| 抖音弹幕 | 开启/关闭弹幕 |
+| 抖音清屏 | 清屏 |
+| 抖音自动连播 | 自动连播 |
+| 抖音网页全屏 | 网页内全屏 |
+| 抖音稍后再看 | 稍后再看 |
+| 抖音不感兴趣 | 不感兴趣 |
+| 抖音相关推荐 | 相关推荐 |
+| 抖音作者主页 | 进入作者主页 |
+| 抖音复制口令 | 复制分享口令 |
+| 抖音音量加/减 | 音量调节 |
 | 退出 | 退出程序 |
 
 ## 环境要求
@@ -45,7 +71,14 @@
 ## 安装依赖
 
 ```powershell
-pip install sounddevice SpeechRecognition pyyaml win10toast
+# 基础依赖
+pip install sounddevice SpeechRecognition pyyaml win10toast pyttsx3
+
+# V2 增强依赖（推荐安装）
+pip install pypinyin rapidfuzz pyautogui jieba
+
+# V2 可选（语义匹配，需要较大模型）
+pip install sentence-transformers torch
 ```
 
 ## 运行
@@ -64,20 +97,33 @@ python src/main.py
 2. 说出 **唤醒词 + 指令**，如 `你好小猪打开微信`
 3. 输入 `0` 切回文本模式
 
-### 配置文件
+### ASR 纠错说明
+语音识别可能将"打开微信"误识别为"打一微信"，纠错模块会自动修正后再解析，无需重复指令。
 
-`config/config.json` 可配置以下选项：
+### 抖音控制说明
+确保抖音桌面版已打开并处于前台状态，语音指令将模拟键盘快捷键操作。
 
-```json
-{
-    "wake_words": ["你好小猪"],
-    "language": "zh-CN",
-    "tts_engine": "pyttsx3",
-    "intents_path": "data/intents.json",
-    "plugin_path": "plugins",
-    "log_file": "assistant.log",
-    "app_map_path": "config/app_map.json"
-}
+## 配置文件
+
+`config/config.yaml` 可配置以下选项：
+
+```yaml
+wake_words:
+  - 小助手
+  - 助手
+  - 你好助手
+language: zh-CN
+tts_engine: pyttsx3
+intents_path: ../data/intents.json
+intent_descriptions_path: ../data/intent_descriptions.json
+plugin_path: ../plugins
+log_file: ../assistant.log
+app_map_path: ../config/app_map.json
+
+# V2 配置项
+nlu_engine: fuzzy_regex      # 解析引擎：fuzzy_regex / hybrid
+enable_asr_correction: true  # 启用 ASR 纠错
+enable_douyin_control: true # 启用抖音控制
 ```
 
 ## 项目结构
@@ -85,21 +131,28 @@ python src/main.py
 ```
 Windows-interact-assistant/
 ├── config/
-│   ├── config.json      # 主配置文件
-│   └── app_map.json     # 应用路径映射
+│   ├── config.yaml        # 主配置文件
+│   └── app_map.json       # 应用路径映射
 ├── data/
-│   └── intents.json     # 意图定义
+│   ├── intents.json        # 意图定义
+│   └── intent_descriptions.json  # 语义匹配语料（V2）
 ├── plugins/
-│   └── example_plugin.py # 插件示例
+│   └── example_plugin.py   # 插件示例
 ├── src/
-│   ├── main.py          # 程序入口
-│   ├── config.py        # 配置加载
-│   ├── executor.py      # 指令执行
-│   ├── intents.py       # 意图解析
-│   ├── plugins.py       # 插件管理
-│   ├── recognize.py      # 语音识别
-│   ├── feedback.py       # 反馈（TTS/通知）
-│   └── logger.py        # 日志
+│   ├── main.py            # 程序入口
+│   ├── config.py          # 配置加载
+│   ├── executor.py        # 指令执行
+│   ├── intents.py         # 意图解析（Legacy）
+│   ├── nlu/               # NLU 增强模块（V2）
+│   │   ├── __init__.py
+│   │   ├── phonetic_corrector.py  # ASR 纠错
+│   │   ├── fuzzy_regex.py         # 增强正则匹配
+│   │   ├── douyin_controller.py   # 抖音键盘控制
+│   │   └── hybrid_engine.py       # 混合 NLU 引擎
+│   ├── plugins.py          # 插件管理
+│   ├── recognize.py        # 语音识别
+│   ├── feedback.py         # 反馈（TTS/通知）
+│   └── logger.py           # 日志
 └── README.md
 ```
 
@@ -124,11 +177,23 @@ def execute(slots):
 [
     {
         "name": "my_intent",
-        "patterns": ["我的指令(\\w+)"],
-        "slots": {"keyword": "(\\w+)"}
+        "patterns": ["我的指令(.+)"],
+        "slots": {"keyword": "(.+)"}
     }
 ]
 ```
+
+## 版本历史
+
+### v1.1
+- 新增 NLU 增强模块（FuzzyRegex、ASR 纠错）
+- 新增抖音键盘控制功能
+- 新增 HybridNLUEngine 预备（sentence-transformers）
+
+### v1.0
+- 基础语音助手功能
+- 应用管理、系统控制、文件操作、定时提醒
+- 插件体系
 
 ## License
 

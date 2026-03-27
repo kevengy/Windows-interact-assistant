@@ -1,10 +1,15 @@
 wake_words:
+  - 你好小猪
   - 小助手
   - 助手
   - 你好助手
 language: zh-CN
 tts_engine: pyttsx3
 intents_path: ../data/intents.json
+intent_descriptions_path: ../data/intent_descriptions.json
 plugin_path: ../plugins
 log_file: ../assistant.log
 app_map_path: ../config/app_map.json
+nlu_engine: fuzzy_regex
+enable_asr_correction: true
+enable_douyin_control: true

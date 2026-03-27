@@ -441,5 +441,24 @@ def execute_intent(intent_name, slots):
         if exists:
             return True, f'已找到应用，路径/命令：{path}'
         return False, '未找到应用，请确认名称是否正确'
+    if intent_name == 'douyin_control':
+        return _execute_douyin_control(slots.get('action', ''))
 
     return False, '未识别的意图'
+
+
+def _execute_douyin_control(action):
+    """执行抖音控制命令"""
+    try:
+        from .nlu.douyin_controller import DouyinController
+    except ImportError:
+        try:
+            from nlu.douyin_controller import DouyinController
+        except ImportError:
+            return False, '抖音控制模块未安装（pyautogui）'
+
+    controller = DouyinController()
+    if not controller.is_available():
+        return False, 'pyautogui 不可用，无法执行抖音控制'
+
+    return controller.trigger(action)

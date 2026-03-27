@@ -16,6 +16,8 @@ try:
     from .logger import configure_logging, get_logger
     from .plugins import PluginManager
     from .recognize import SpeechRecognizer, check_speech_dependencies
+    from .nlu.phonetic_corrector import PhoneticCorrector
+    from .nlu.fuzzy_regex import FuzzyRegexMatcher
 except ImportError:
     from config import load_config
     from executor import execute_intent
@@ -24,6 +26,8 @@ except ImportError:
     from logger import configure_logging, get_logger
     from plugins import PluginManager
     from recognize import SpeechRecognizer, check_speech_dependencies
+    from phonetic_corrector import PhoneticCorrector
+    from fuzzy_regex import FuzzyRegexMatcher
 
 
 def main():
@@ -39,6 +43,27 @@ def main():
 
     from .executor import load_app_map
     load_app_map(cfg.get('app_map_path'))
+
+    # 初始化增强 NLU 组件
+    corrector = None
+    fuzzy_matcher = None
+    if cfg.get('enable_asr_correction', True):
+        try:
+            from .executor import APP_MAP as _APP_MAP
+            corrector = PhoneticCorrector(
+                intents_path=cfg.get('intents_path'),
+                app_names=list(_APP_MAP.keys())
+            )
+            logger.info('ASR 纠错模块初始化成功')
+        except Exception as e:
+            logger.warning(f'ASR 纠错模块初始化失败: {e}')
+
+    if cfg.get('nlu_engine') == 'fuzzy_regex':
+        try:
+            fuzzy_matcher = FuzzyRegexMatcher(cfg.get('intents_path'))
+            logger.info('FuzzyRegex 匹配器初始化成功')
+        except Exception as e:
+            logger.warning(f'FuzzyRegex 匹配器初始化失败: {e}')
 
     # 扫描本地程序目录并更新 APP_MAP
     from .executor import scan_all_program_folders
@@ -113,8 +138,25 @@ def main():
                 say('再见')
                 break
 
-            intent_name, slots = parser.parse(query)
-            logger.info(f'解析: {query} => intent={intent_name}, slots={slots}')
+            # ASR 纠错
+            if corrector:
+                corrected = corrector.correct(query)
+                if corrected != query:
+                    print(f'ASR纠错：{query} -> {corrected}')
+                    logger.info(f'ASR纠错: {query} -> {corrected}')
+                    query = corrected
+
+            # 模糊匹配优先（如果启用）
+            if fuzzy_matcher:
+                intent_name, slots = fuzzy_matcher.match(query)
+                if intent_name != 'unknown':
+                    logger.info(f'FuzzyRegex解析: {query} => intent={intent_name}, slots={slots}')
+                else:
+                    intent_name, slots = parser.parse(query)
+                    logger.info(f'解析: {query} => intent={intent_name}, slots={slots}')
+            else:
+                intent_name, slots = parser.parse(query)
+                logger.info(f'解析: {query} => intent={intent_name}, slots={slots}')
 
             plugin_ok, plugin_result = plugin_manager.try_execute(intent_name, slots)
             if plugin_ok:
