@@ -116,6 +116,28 @@ class SpeechRecognizer:
         self.language = language
         self.microphone = SounddeviceMicrophone()
 
+    def _recognize_with_retry(self, audio, retries=3, delay=1):
+        """带重试的语音识别，处理网络连接错误"""
+        import time
+        last_error = None
+        for attempt in range(retries):
+            try:
+                text = self.recognizer.recognize_google(audio, language=self.language)
+                return True, text
+            except Exception as e:
+                last_error = e
+                err_str = str(e)
+                # WinError 10054 = 连接被重置，WinError -1 = 连接断开
+                if '10054' in err_str or '10053' in err_str or 'WinError -1' in err_str or 'Connection' in err_str or 'reset' in err_str.lower():
+                    if attempt < retries - 1:
+                        wait_time = delay * (2 ** attempt)  # 指数退避
+                        print(f'网络连接被重置，{wait_time}秒后重试 ({attempt + 1}/{retries})...')
+                        time.sleep(wait_time)
+                        continue
+                # 其他错误直接抛出
+                raise
+        return False, f'识别失败: {last_error}'
+
     def listen_once(self, timeout=5, phrase_time_limit=8):
         """
         录制并识别一段语音，返回 (success, text or error_message)
@@ -132,9 +154,8 @@ class SpeechRecognizer:
             with sr.AudioFile(audio_io) as source:
                 audio = self.recognizer.record(source)
 
-            # 使用 Google 语音识别（需要网络）
-            text = self.recognizer.recognize_google(audio, language=self.language)
-            return True, text
+            # 使用 Google 语音识别（需要网络），带重试
+            return self._recognize_with_retry(audio)
 
         except sr.WaitTimeoutError:
             return False, '监听超时，未检测到语音'
@@ -164,15 +185,34 @@ class SpeechRecognizer:
                 continue
 
             normalized = text.lower().strip()
+            print(f'[调试] 识别结果: [{text}] -> normalized: [{normalized}]')
 
             # 如果配置了唤醒词，检查是否包含
             if wake_words:
                 found_wake = False
                 remaining = normalized
                 for wake in wake_words:
-                    if wake.lower() in remaining:
-                        remaining = remaining.replace(wake.lower(), '').strip()
+                    wake_lower = wake.lower()
+                    # 精确匹配：唤醒词在识别结果中
+                    if wake_lower in remaining:
+                        remaining = remaining.replace(wake_lower, '', 1).strip()
                         found_wake = True
+                        print(f'[调试] 精确匹配唤醒词 [{wake}] 成功，剩余: [{remaining}]')
+                        break
+                    # 模糊匹配：使用相似度检测（处理语音识别常见的近音字错误）
+                    from difflib import SequenceMatcher
+                    # 检查唤醒词开头部分的匹配（容忍"麦麦"被识别成"买买"等）
+                    wake_prefix = wake_lower[:max(2, len(wake_lower) - 2)]
+                    for i in range(len(remaining) - len(wake_prefix) + 1):
+                        chunk = remaining[i:i + len(wake_prefix) + 2]
+                        ratio = SequenceMatcher(None, wake_prefix, chunk).ratio()
+                        if ratio >= 0.8:
+                            # 找到了近似前缀，从该位置提取唤醒词+后续内容
+                            remaining = remaining[i + len(wake_prefix) + 2:].strip()
+                            found_wake = True
+                            print(f'[调试] 模糊匹配唤醒词 [{wake}] 成功（相似度 {ratio:.2f}），剩余: [{remaining}]')
+                            break
+                    if found_wake:
                         break
 
                 if not found_wake:
