@@ -1,0 +1,22 @@
+[
+  {
+    "name": "open_app",
+    "patterns": ["打开.*", "启动.*"],
+    "slots": {"app_name": "(?:打开|启动)\\s*(.*)"}
+  },
+  {
+    "name": "close_app",
+    "patterns": ["关闭.*", "退出.*"],
+    "slots": {"app_name": "(?:关闭|退出)\\s*(.*)"}
+  },
+  {
+    "name": "set_volume",
+    "patterns": ["音量.*"],
+    "slots": {"value": "音量\\s?(\\d+)"}
+  },
+  {
+    "name": "set_timer",
+    "patterns": ["定时.*", "闹钟.*"],
+    "slots": {"minutes": "(\\d+)\\s*分钟"}
+  }
+]

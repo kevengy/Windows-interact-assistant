@@ -1,0 +1,10 @@
+wake_words:
+  - 小助手
+  - 助手
+  - 你好助手
+language: zh-CN
+tts_engine: pyttsx3
+intents_path: ../data/intents.json
+plugin_path: ../plugins
+log_file: ../assistant.log
+app_map_path: ../config/app_map.json
