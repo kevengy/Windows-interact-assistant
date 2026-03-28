@@ -86,15 +86,18 @@ pip install sherpa-onnx
 
 ### 下载语音模型（可选）
 
-如需本地离线语音识别，需下载 SenseVoice 模型：
+如需本地离线语音识别，需下载 sherpa-onnx 官方的 SenseVoice 模型：
 
 1. 下载地址：https://github.com/k2-fsa/sherpa-onnx/releases
-2. 寻找：`sherpa-onnx-sense-voice-*-x64-windows.tar.bz2`
-3. 解压到 `models/sense_voice/` 目录
+2. 寻找：`sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-*.tar.bz2`
+3. 解压后得到 `model.int8.onnx` 和 `tokens.txt`
+4. 将这两个文件放到 `models/sense_voice/` 目录
 
 程序会自动检测模型是否可用：
 - 有模型 → 使用 Sherpa-onnx 本地离线识别
 - 无模型 → 自动切换到 Google STT（需要网络）
+
+> **注意**：项目路径不能包含中文/非ASCII字符（如 `C:\我的项目`），否则 sherpa-onnx 无法加载模型。
 
 ## 运行
 
@@ -211,11 +214,13 @@ def execute(slots):
 - 新增本地离线语音识别（Sherpa-onnx + SenseVoice）
 - 程序启动直接进入语音模式
 - 自动检测可用语音引擎
+- 修复中文路径导致模型加载失败的问题（需使用英文路径）
 
 ### v1.1
 - 新增 NLU 增强模块（FuzzyRegex、ASR 纠错）
 - 新增抖音键盘控制功能
 - 新增 HybridNLUEngine 预备（sentence-transformers）
+- 修复多处代码逻辑错误
 
 ### v1.0
 - 基础语音助手功能
