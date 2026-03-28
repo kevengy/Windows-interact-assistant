@@ -26,8 +26,8 @@ except ImportError:
     from logger import configure_logging, get_logger
     from plugins import PluginManager
     from recognize import SpeechRecognizer, SherpaONNXRecognizer, check_speech_dependencies
-    from phonetic_corrector import PhoneticCorrector
-    from fuzzy_regex import FuzzyRegexMatcher
+    from nlu.phonetic_corrector import PhoneticCorrector
+    from nlu.fuzzy_regex import FuzzyRegexMatcher
 
 
 def create_recognizer(cfg):
@@ -107,6 +107,16 @@ def main():
         except Exception as e:
             logger.warning(f'FuzzyRegex 匹配器初始化失败: {e}')
 
+    # 初始化唤醒词检测器（VAD）
+    wake_word_detector = None
+    if cfg.get('enable_wake_word_detector', True):
+        try:
+            from .nlu.wake_word_detector import create_wake_word_detector
+            wake_word_detector = create_wake_word_detector(cfg)
+            logger.info('唤醒词检测器初始化成功')
+        except Exception as e:
+            logger.warning(f'唤醒词检测器初始化失败: {e}')
+
     # 扫描本地程序目录并更新 APP_MAP
     from .executor import scan_all_program_folders
     try:
@@ -165,11 +175,27 @@ def main():
                     use_voice = False
                     continue
 
-                ok, query = recognizer.listen_with_wake_word(cfg.get('wake_words', []))
-                if not ok:
-                    logger.warning(f'语音识别失败: {query}')
-                    say(query)
-                    continue
+                # 优先使用专用唤醒词检测器（VAD）
+                if wake_word_detector is not None:
+                    ok, _ = recognizer.listen_await_wake_word(wake_word_detector)
+                    if ok:
+                        # VAD 检测到语音，唤醒成功，继续监听实际指令
+                        say('我在')
+                        ok, query = recognizer.listen_once()
+                        if not ok:
+                            logger.warning(f'语音识别失败: {query}')
+                            say(query)
+                            continue
+                    else:
+                        # 唤醒词检测超时，继续循环等待
+                        continue
+                else:
+                    # 回退到原有的 text-based 方式
+                    ok, query = recognizer.listen_with_wake_word(cfg.get('wake_words', []))
+                    if not ok:
+                        logger.warning(f'语音识别失败: {query}')
+                        say(query)
+                        continue
                 print('识别内容：', query)
             else:
                 query = input('请输入指令：').strip()
@@ -201,14 +227,23 @@ def main():
             if corrector:
                 corrected = corrector.correct(query)
                 if corrected != query:
-                    print(f'ASR纠错：{query} -> {corrected}')
                     logger.info(f'ASR纠错: {query} -> {corrected}')
                     query = corrected
 
             # 模糊匹配优先（如果启用）
             if fuzzy_matcher:
                 intent_name, slots = fuzzy_matcher.match(query)
-                if intent_name != 'unknown':
+                if intent_name == 'open_app':
+                    # 防止模糊匹配把系统面板误识别为应用
+                    from .executor import SYSTEM_PANEL_COMMANDS
+                    app_name = slots.get('app_name', '')
+                    if app_name in SYSTEM_PANEL_COMMANDS:
+                        intent_name = 'open_system_panel'
+                        slots = {'panel': app_name}
+                        logger.info(f' FuzzyRegex矫正: {query} => intent={intent_name}, slots={slots}')
+                    else:
+                        logger.info(f'FuzzyRegex解析: {query} => intent={intent_name}, slots={slots}')
+                elif intent_name != 'unknown':
                     logger.info(f'FuzzyRegex解析: {query} => intent={intent_name}, slots={slots}')
                 else:
                     intent_name, slots = parser.parse(query)

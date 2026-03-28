@@ -2,6 +2,12 @@ import json
 import os
 import re
 
+try:
+    from .nlu.rules import FALLBACK_RULES, extract_app_name
+    SHARED_RULES_AVAILABLE = True
+except ImportError:
+    SHARED_RULES_AVAILABLE = False
+
 
 class IntentParser:
     def __init__(self, intents_path):
@@ -27,33 +33,24 @@ class IntentParser:
                             slots[slot_name] = m.group(1)
                     return intent['name'], slots
 
-        if '打开' in text or '启动' in text:
-            target = re.sub(r'.*(打开|启动)\s*', '', text)
-            return 'open_app', {'app_name': target.strip()}
+        # 使用共享回退规则（如果可用）
+        if SHARED_RULES_AVAILABLE:
+            for rule in FALLBACK_RULES:
+                if rule['intent'] == 'save_to_folder':
+                    # save_to_folder 有特殊语法，单独处理
+                    continue
+                if any(kw in text for kw in rule['keywords']):
+                    slots = {}
+                    if rule['slot_pattern']:
+                        m = re.search(rule['slot_pattern'], text)
+                        if m:
+                            slots[rule['slot_name']] = m.group(1).strip()
+                            if rule['intent'] in ('open_app', 'close_app') and SHARED_RULES_AVAILABLE:
+                                slots['app_name'] = extract_app_name(m.group(1).strip())
+                    return rule['intent'], slots
 
-        if '关闭' in text or '退出' in text:
-            target = re.sub(r'.*(关闭|退出)\s*', '', text)
-            return 'close_app', {'app_name': target.strip()}
-
-        if '设置' in text and '音量' in text:
-            value = re.search(r'音量\s?(\d+)', text)
-            return 'set_volume', {'value': int(value.group(1)) if value else 50}
-
-        if '定时' in text or '闹钟' in text:
-            minutes = re.search(r'(\d+)\s*分钟', text)
-            if minutes:
-                return 'set_timer', {'minutes': int(minutes.group(1))}
-
-        if '列出应用' in text or '显示应用' in text or '应用列表' in text:
-            return 'list_apps', {}
-
-        if '检查应用' in text or '查询应用' in text or '是否安装' in text:
-            m = re.search(r'(?:检查应用|查询应用|是否安装)\s*(.*)', text)
-            if m:
-                return 'check_app', {'app_name': m.group(1).strip()}
-
+        # save_to_folder 特殊语法处理
         if '存入文件夹' in text or '保存到文件夹' in text or '存入文件' in text:
-            # 语法：存入文件夹 <路径> 内容 <文本> 或 存入文件 <路径/文件名> <文本>
             folder_match = re.search(r'(?:存入文件夹|保存到文件夹)\s*([^\s:：]+)\s*(?:内容|文本)?\s*[:：]?\s*(.*)', text)
             file_match = re.search(r'(?:存入文件|保存)\s*([^\s:：]+\/[^\s:：]+)\s*(.*)', text)
             if folder_match:
