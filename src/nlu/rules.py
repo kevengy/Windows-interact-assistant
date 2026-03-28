@@ -32,7 +32,7 @@ FALLBACK_RULES = [
         'keywords': ['设置', '音量'],
         'intent': 'set_volume',
         'slot_name': 'value',
-        'slot_pattern': r'音量\s?(\d+)'
+        'slot_pattern': r'音量.*?(\d+)'
     },
     {
         'keywords': ['定时', '闹钟'],
