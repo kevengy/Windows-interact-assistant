@@ -286,8 +286,8 @@ def resolve_app_executable(app_name):
     if candidate and not (os.path.exists(candidate) or shutil.which(candidate)):
         candidate = None
 
-    # 直接候选文件名、命令
-    for candidate in [normalized, f'{normalized}.exe', f'{normalized.lower()}.exe']:
+    # 直接候选文件名、命令（normalized 已是小写）
+    for candidate in [normalized, f'{normalized}.exe']:
         if os.path.exists(candidate) or shutil.which(candidate):
             return candidate
 
@@ -368,11 +368,13 @@ def open_app(app_name):
 def close_app(app_name):
     if not app_name:
         return False, '没有指定要关闭的应用'
+    # 去除 .exe 后缀，避免 taskkill /im xxx.exe.exe
+    app_base = app_name.rstrip('.exe').strip()
     try:
-        subprocess.Popen(f'taskkill /im {app_name}.exe /f', shell=True)
-        return True, f'已尝试关闭{app_name}'
+        subprocess.Popen(f'taskkill /im {app_base}.exe /f', shell=True)
+        return True, f'已尝试关闭{app_base}'
     except Exception as e:
-        return False, f'关闭{app_name}失败：{e}'
+        return False, f'关闭{app_base}失败：{e}'
 
 
 def set_volume(value):

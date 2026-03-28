@@ -5,7 +5,6 @@
 """
 import io
 import wave
-import threading
 import numpy as np
 import sounddevice as sd
 import speech_recognition as sr
@@ -289,7 +288,7 @@ class SherpaONNXRecognizer:
                 f'下载地址: https://github.com/k2-fsa/sherpa-onnx/releases'
             )
         # 查找 tokens 文件
-        for tokens_name in ['tokens.txt', 'tokens (1).txt', 'tokens.txt']:
+        for tokens_name in ['tokens.txt', 'tokens (1).txt']:
             tokens_file = os.path.join(model_path, tokens_name)
             if os.path.exists(tokens_file):
                 break

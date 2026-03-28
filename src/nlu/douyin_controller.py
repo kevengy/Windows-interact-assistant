@@ -166,7 +166,7 @@ class DouyinController:
             if success:
                 time.sleep(delay)
 
-        all_success = all(r[0] for r in results)
+        all_success = all(success for success, _ in results)
         return all_success, '; '.join(results)
 
     def _find_similar_action(self, action: str) -> Optional[str]:
